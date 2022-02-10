@@ -1,0 +1,74 @@
+The NMEA 0183 standard uses a simple ASCII, serial communications protocol that defines how data are transmitted in a "sentence" from one "talker" to multiple "listeners" at a time. Through the use of intermediate expanders, a talker can have a unidirectional conversation with a nearly unlimited number of listeners, and using multiplexers, multiple sensors can talk to a single computer port.
+
+******************** MESSAGE STRUCTURE *********************
+All transmitted data are printable ASCII characters between 0x20 (space) to 0x7e (~)
+
+Data characters are all the above characters except the reserved characters (See next line)
+Reserved characters are used by NMEA0183 for the following uses:
+-----------------------------------------------------
+ASCII	| Hex 	| Dec	  | Use
+<CR>	| 0x0d	| 13	  | Carriage return
+<LF>	| 0x0a	| 10    | Line feed, end delimiter
+ !	  | 0x21	| 33	  | Start of encapsulation sentence delimiter
+$	    | 0x24	| 36    | Start delimiter
+*	    | 0x2a	| 42    | Checksum delimiter
+,	    | 0x2c	| 44    |	Field delimiter
+\	    | 0x5c	| 92	  | TAG block delimiter
+^	    | 0x5e	| 94	  | Code delimiter for HEX representation of ISO/IEC 8859-1 (ASCII)       |       |       | characters
+~	    | 0x7e	| 126	  | Reserved
+
+Messages have a maximum length of 82 characters, including the $ or ! starting character and the ending <LF>
+
+The start character for each message can be either a $ (For conventional field delimited messages) or ! (for messages that have special encapsulation in them)
+
+The next five characters identify the talker (two characters) and the type of message (three characters).
+
+All data fields that follow are comma-delimited.
+
+Where data is unavailable, the corresponding field remains blank (it contains no character before the next delimiter – see Sample file section below).
+
+The first character that immediately follows the last data field character is an asterisk, but it is only included if a checksum is supplied.
+
+The asterisk is immediately followed by a checksum represented as a two-digit hexadecimal number. The checksum is the bitwise exclusive OR of ASCII codes of all characters between the $ and *, not inclusive. According to the official specification, the checksum is optional for most data sentences, but is compulsory for RMA, RMB, and RMC (among others).
+
+<CR><LF> ends the message.
+
+
+The address field starts with “$” followed by the talker ID and a sentence identifier. The used talker IDs are:
+* GP for GPS only solutions
+* GL for GLONASS only solutions
+* GA for GALILEO only solutions
+* GN for multi GNSS solutions
+
+Satellite Numbering
+– GPS: 1-32
+– GLONASS: 33-96
+– GALILEO: 301-336*
+*currently no standard way to number Galileo satellites. 
+
+
+As an example, a waypoint arrival alarm has the form:
+
+$GPAAM,A,A,0.10,N,WPTNME*32
+
+Another example for AIS messages is:
+
+!AIVDM,1,1,,A,14eG;o@034o8sd<L9i:a;WF>062D,0*7D
+
+************************ Sample File ****************************
+$GPGGA,092750.000,5321.6802,N,00630.3372,W,1,8,1.03,61.7,M,55.2,M,,*76
+$GPGSA,A,3,10,07,05,02,29,04,08,13,,,,,1.72,1.03,1.38*0A
+$GPGSV,3,1,11,10,63,137,17,07,61,098,15,05,59,290,20,08,54,157,30*70
+$GPGSV,3,2,11,02,39,223,19,13,28,070,17,26,23,252,,04,14,186,14*79
+$GPGSV,3,3,11,29,09,301,24,16,09,020,,36,,,*76
+$GPRMC,092750.000,A,5321.6802,N,00630.3372,W,0.02,31.66,280511,,,A*43
+$GPGGA,092751.000,5321.6802,N,00630.3371,W,1,8,1.03,61.7,M,55.3,M,,*75
+$GPGSA,A,3,10,07,05,02,29,04,08,13,,,,,1.72,1.03,1.38*0A
+$GPGSV,3,1,11,10,63,137,17,07,61,098,15,05,59,290,20,08,54,157,30*70
+$GPGSV,3,2,11,02,39,223,16,13,28,070,17,26,23,252,,04,14,186,15*77
+$GPGSV,3,3,11,29,09,301,24,16,09,020,,36,,,*76
+$GPRMC,092751.000,A,5321.6802,N,00630.3371,W,0.06,31.66,280511,,,A*45
+
+Sources:
+1. https://en.wikipedia.org/wiki/NMEA_0183
+2. https://anavs.com/knowledgebase/nmea-format/

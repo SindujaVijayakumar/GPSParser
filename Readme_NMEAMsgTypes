@@ -1,0 +1,225 @@
+NMEA supports many message types or sentence codes. The idea of NMEA is to send a line of data called a sentence that is totally self contained and independent from other sentences. The most important NMEA sentences include the GGA which provides the current Fix data, the RMC which provides the minimum gps sentences information, and the GSA which provides the Satellite status data.
+
+The sample file contained NMEA sentences with the following codes:
+1. $GNRMC
+2. $GNVTG
+3. $GNGGA
+4. $GNGSA
+5. $GPGSV
+6. $GNGLL
+
+The structure of each of these message types are given below:
+
+1. RMC - Recommended minimum specific GPS/Transit data -position, velocity, time data. 
+
+  Examples: 
+  
+  $GPRMC,225446,A,4916.45,N,12311.12,W,000.5,054.7,191194,020.3,E*68
+
+
+           225446       Time of fix 22:54:46 UTC
+           A            Navigation receiver warning A = OK, V = warning
+           4916.45,N    Latitude 49 deg. 16.45 min North
+           12311.12,W   Longitude 123 deg. 11.12 min West
+           000.5        Speed over ground, Knots
+           054.7        Course Made Good, True
+           191194       Date of fix  19 November 1994
+           020.3,E      Magnetic variation 20.3 deg East
+           *68          mandatory checksum
+
+
+  $GPRMC,220516,A,5133.82,N,00042.24,W,173.8,231.8,130694,004.2,W*70
+              1 2    3    4    5     6    7    8      9     10  11 12
+
+
+      1   220516     Time Stamp
+      2   A          validity - A-ok, V-invalid
+      3   5133.82    current Latitude
+      4   N          North/South
+      5   00042.24   current Longitude
+      6   W          East/West
+      7   173.8      Speed in knots
+      8   231.8      True course
+      9   130694     Date Stamp
+      10  004.2      Variation
+      11  W          East/West
+      12  *70        checksum
+
+
+  $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
+        1    = UTC of position fix
+        2    = Data status (V=navigation receiver warning)
+        3    = Latitude of fix
+        4    = N or S
+        5    = Longitude of fix
+        6    = E or W
+        7    = Speed over ground in knots
+        8    = Track made good in degrees True
+        9    = UT date
+        10   = Magnetic variation degrees (Easterly var. subtracts from true course)
+        11   = E or W
+        12   = Checksum
+
+
+2. VTG - Velocity made good. 
+  Examples: 
+    $GPVTG,054.7,T,034.4,M,005.5,N,010.2,K
+
+    where:
+            VTG          Track made good and ground speed
+            054.7,T      True track made good
+            034.4,M      Magnetic track made good
+            005.5,N      Ground speed, knots
+            010.2,K      Ground speed, Kilometers per hour
+
+
+    $GPVTG,t,T,,,s.ss,N,s.ss,K*hh
+
+    where:
+            1    = Track made good
+            2    = Fixed text 'T' indicates that track made good is relative to true north
+            3    = not used
+            4    = not used
+            5    = Speed over ground in knots
+            6    = Fixed text 'N' indicates that speed over ground in in knots
+            7    = Speed over ground in kilometers/hour
+            8    = Fixed text 'K' indicates that speed over ground is in kilometers/hour
+            9    = Checksum
+            
+      $--VTG,x.x,T,x.x,M,x.x,N,x.x,K
+
+      where: 
+            x.x,T = Track, degrees True
+            x.x,M = Track, degrees Magnetic
+            x.x,N = Speed, knots
+            x.x,K = Speed, Km/hr
+
+
+3. GGA - GPS fix data
+
+$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47
+
+Where:
+     GGA          = Global Positioning System Fix Data
+     123519       = Fix taken at 12:35:19 UTC
+     4807.038,N   = Latitude 48 deg 07.038' N
+     01131.000,E  = Longitude 11 deg 31.000' E
+     1            = Fix quality:  
+                    0 = invalid
+                    1 = GPS fix (SPS)
+                    2 = DGPS fix
+                    3 = PPS fix
+                    4 = Real Time Kinematic
+                    5 = Float RTK
+                    6 = estimated (dead reckoning) (2.3 feature)
+                    7 = Manual input mode
+                    8 = Simulation mode
+     08           = Number of satellites being tracked
+     0.9          = Horizontal dilution of position
+     545.4,M      = Altitude, Meters, above mean sea level
+     46.9,M       = Height of geoid (mean sea level) above WGS84
+                      ellipsoid
+     empty field  = time in seconds since last DGPS update
+     empty field  = DGPS station ID number
+     *47          = the checksum data, always begins with *
+If the height of geoid is missing then the altitude may be incorrect. This is the only sentence that reports altitude.
+
+4. GSA - GPS DOP and Active Satellites
+
+This sentence provides details on the nature of the fix. It includes the numbers of the satellites being used in the current solution and the DOP. DOP (dilution of precision) is an indication of the effect of satellite geometry on the accuracy of the fix. It is a unitless number where smaller is better. For 3D fixes using 4 satellites a 1.0 would be considered to be a perfect number, however for overdetermined solutions it is possible to see numbers below 1.0.
+
+    $GPGSA,A,3,04,05,,09,12,,,24,,,,,2.5,1.3,2.1*39
+
+    Where:
+        GSA    =  Satellite status
+        A      =  Auto selection of 2D or 3D fix (M = manual) 
+        3      =  3D fix - values include: 1 = no fix
+                                          2 = 2D fix
+                                          3 = 3D fix
+        04,05..= IDs of satellites used in position fix, can be up to 12 satellites,              null for unused fields
+        2.5    =  PDOP (dilution of precision) 
+        1.3    =  Horizontal dilution of precision (HDOP) 
+        2.1    =  Vertical dilution of precision (VDOP)
+        *39    =  the checksum data, always begins with *
+
+*if GN is used for Talker ID a separate sentence must to created for each GNSS constellation all starting with the Talker ID for multi GNSS.
+Example:
+$GNGSA,2,M,06,12,15,17,19,24,25,32,1.34,0.96,0.93*1D
+$GNGSA,2,M,70,71,79,80,81,82,88,1.34,0.96,0.93*3A
+
+
+5. GSV- GPS Satellites in View
+
+This message shows data about the satellites that the unit might be able to find based on its viewing mask and almanac data. It also shows current ability to track this data. Note that one GSV sentence only can provide data for up to 4 satellites and thus there may need to be 3 sentences for the full information. It is reasonable for the GSV sentence to contain more satellites than GGA might indicate since GSV may include satellites that are not used as part of the solution. It is not a requirment that the GSV sentences all appear in sequence. To avoid overloading the data bandwidth some receivers may place the various sentences in totally different samples since each sentence identifies which one it is. If multi GNSS is used a separate GSV sentence must be created for each constellation starting with the constellation specific talker ID.
+
+The field called SNR (Signal to Noise Ratio) in the NMEA standard is often referred to as signal strength. SNR is an indirect but more useful value that raw signal strength. It can range from 0 to 99 and has units of dB according to the NMEA standard, but the various manufacturers send different ranges of numbers with different starting numbers so the values themselves cannot necessarily be used to evaluate different units. The range of working values in a given gps will usually show a difference of about 25 to 35 between the lowest and highest values, however 0 is a special case and may be shown on satellites that are in view but not being tracked.
+
+    $GPGSV,2,1,08,01,40,083,46,02,17,308,41,12,07,344,39,14,22,228,45*75
+
+      Where:
+            GSV          Satellites in view
+            2            Number of sentences for full data
+            1            sentence 1 of 2
+            08           Number of satellites in view
+
+            01           Satellite PRN number
+            40           Elevation, degrees
+            083          Azimuth, degrees
+            46           SNR - higher is better
+                for up to 4 satellites per sentence
+            *75          the checksum data, always begins with *
+
+      $GPGSV,1,1,13,02,02,213,,03,-3,000,,11,00,121,,14,13,172,05*67
+
+
+            1    = Total number of messages of this type in this cycle
+            2    = Message number
+            3    = Total number of SVs in view
+            4    = SV PRN number
+            5    = Elevation in degrees, 90 maximum
+            6    = Azimuth, degrees from true north, 000 to 359
+            7    = SNR, 00-99 dB (null when not tracking)
+            8-11 = Information about second SV, same as field 4-7
+            12-15= Information about third SV, same as field 4-7
+            16-19= Information about fourth SV, same as field 4-7
+
+      $GPGSV,6,1,10,02,3.6,133.2,26,10,06,11.7,100.7,39,10,10,9.6,281.5,35,10,12,63.1,256.5,46*58
+      $GPGSV,6,2,10,15,26.5,186.0,43,10,17,30.5,48.7,42,10,19,43.9,65.3,46,10,24,86.5,103.6,46*5E
+      $GPGSV,6,3,10,25,21.6,250.8,43,10,32,21.7,316.0,41,,,,,,,,,,*5E
+      $GLGSV,6,4,09,69,7.0,215.9,30,09,70,30.8,267.4,44,09,71,23.0,324.4,46,09,73,13.0,286.8,33*72
+      $GLGSV,6,5,09,79,47.8,70.6,43,09,80,54.9,314.5,38,09,81,48.6,86.8,43,09,82,28.4,150.8,46*49
+      $GLGSV,6,6,09,88,21.3,28.0,40,,,,,,,,,,,,,,,*4E
+
+
+6. GLL- Geographic Position, Latitude/Longitude
+
+      $GPGLL,4916.45,N,12311.12,W,225444,A
+
+
+                4916.46,N    Latitude 49 deg. 16.45 min. North
+                12311.12,W   Longitude 123 deg. 11.12 min. West
+                225444       Fix taken at 22:54:44 UTC
+                A            Data valid
+
+
+      $GPGLL,5133.81,N,00042.25,W*75
+                    1    2     3    4 5
+
+            1    5133.81   Current latitude
+            2    N         North/South
+            3    00042.25  Current longitude
+            4    W         East/West
+            5    *75       checksum
+      $--GLL,lll.ll,a,yyyyy.yy,a,hhmmss.ss,A llll.ll = Latitude of position
+
+      a = N or S
+      yyyyy.yy = Longitude of position
+      a = E or W
+      hhmmss.ss = UTC of position
+      A = status: A = valid data
+
+
+Sources: 
+1. http://aprs.gids.nl/nmea/
+2. http://campar.in.tum.de/twiki/pub/Chair/NaviGpsDemon/nmea.html#nmea
+3. https://greenvillagedotblog.wordpress.com/2018/08/05/decoding-nmea-sentences/

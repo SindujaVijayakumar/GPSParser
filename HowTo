@@ -1,0 +1,10 @@
+From all blocks of messages
+  1. Get RMC. Check validity. 
+  2. If valid, look for GGA message
+    3. If GGA found, for msg index = N, get timestamp, latitude, longitude 
+      4. If N>0, find speed, store for speed and time for msg index N
+
+
+Sources:
+1. https://www.geeksforgeeks.org/program-distance-two-points-earth/?ref=lbp
+2. https://www.usgs.gov/faqs/how-much-distance-does-degree-minute-and-second-cover-your-maps
