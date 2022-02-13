@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 #include "parse.h"
 
 #define ENABLE 1
@@ -11,7 +12,7 @@
 #define MAX_MSGS INT_MAX
 #define NMEA_MSG_LEN 82
 
-const char debugFile[] = "./nmea_sample";
+const char debugFile[] = "./nmea_sample_full";
 
 
 
@@ -55,7 +56,7 @@ char** splitMsgByComma(const char* msg, int length)
             //strcat(tokens[numToken], '\0');
       
         }
-        printf("\ntokens[%d]=%s", numToken, tokens[numToken]);
+        //printf("\ntokens[%d]=%s", numToken, tokens[numToken]);
         // free(tokens[numToken]);
         numToken++;
         lenToken = 0;
@@ -168,19 +169,42 @@ bool isValidGGAMsg(GGA_t msg)
     return (msg.fix > 0 && msg.fix < 9);
 }
 
-float getDistanceKM(coord_t latA, coord_t latB, coord_t lonA, coord_t lonB)
+
+int writeSpeedTimetoFile(double speedKmph, tm_t tStamp)
 {
+
+    static FILE* speedLog = NULL;
+    char timeStamp[9];
+    char hour[3];
+    char min[3];
+    char sec[3];
+
+    speedLog = fopen("./speedlog.csv", "a");
+    if (speedLog == NULL)
+    {
+        return -1;
+    }
+
+    sprintf(hour, "%d", tStamp.tm_hour);
+    sprintf(min, "%d", tStamp.tm_min);
+    sprintf(sec, "%d", tStamp.tm_sec);
+    sprintf(timeStamp, "%s:%s:%s", hour, min, sec);
+
+    fprintf(speedLog, "%s,%f\n", timeStamp, speedKmph);
+
+    fclose(speedLog);
+
     return 0;
-}
-float getTimeSec(tm_t timestampA, tm_t timestampB)
-{
-    return 0;
+
 }
 
 buffStatus_t updatePVTBuffer(GGA_t msg)
 {
     static pvtBuf_t pvtBuffer[2];
     static int bufferCnt = BUFF_EMPTY;
+    double distanceKm = -1;
+    double timeSec = -1;
+    double speedKmph = -1;
 
     if (bufferCnt < BUFF_FULL)
     {        
@@ -191,18 +215,34 @@ buffStatus_t updatePVTBuffer(GGA_t msg)
     }
     if (bufferCnt == BUFF_FULL)
     {
-        getDistanceKM(pvtBuffer[0].lat, pvtBuffer[1].lat,
+        distanceKm = getDistanceKM(pvtBuffer[0].lat, pvtBuffer[1].lat,
             pvtBuffer[0].lon, pvtBuffer[1].lon);
-        getTimeSec(pvtBuffer[0].timestamp, pvtBuffer[1].timestamp);
-        memset(&pvtBuffer[0], 0, sizeof(pvtBuf_t));
+        timeSec = getTimeSec(pvtBuffer[0].timestamp, pvtBuffer[1].timestamp);
+        speedKmph = getSpeedKMPH(distanceKm, timeSec);
+        writeSpeedTimetoFile(speedKmph, pvtBuffer[1].timestamp);
+        memcpy(&pvtBuffer[0], &pvtBuffer[1], sizeof(pvtBuffer));
         memset(&pvtBuffer[1], 0, sizeof(pvtBuf_t));
-        bufferCnt = BUFF_EMPTY;
+        bufferCnt = BUFF_INUSE;
 
     }
 
     return (buffStatus_t)bufferCnt;
 
 
+}
+
+void clearSpeedLog()
+{
+    FILE* file;
+    if ((file = fopen(".\speedLog.csv", "r")))
+    {
+        fclose(file);
+        file = fopen(".\speedLog.csv", "w");
+        fclose(file);
+            
+    }
+        
+    
 }
 
 
@@ -214,6 +254,9 @@ int processLog(FILE *logFile)
   char** msgParts = NULL;
   msgType_t msgtype = (msgType_t)UNSUPPORTED;
   GGA_t msgGGA;
+  buffStatus_t bufferStatus = (buffStatus_t)BUFF_EMPTY;
+
+  clearSpeedLog();
   
   while(fscanf(logFile, " %[^\n]", msg) != EOF)
   {
@@ -243,9 +286,8 @@ int processLog(FILE *logFile)
       case MSG_TYPE:
       {
           msgtype = getMsgType(*msgParts);
-          printf("\n MSG tyPE %d", msgtype);
           if (msgtype == UNSUPPORTED)
-              msgParser = MSG_VALID;
+              msgParser = MSG_DISCARD;
           else
               msgParser = MSG_DATA;
 
@@ -257,21 +299,78 @@ int processLog(FILE *logFile)
               msgGGA = parseMsgGGA(msgParts);
               if (isValidGGAMsg(msgGGA))
               {
-                  updatePVTBuffer(msgGGA);
+                  bufferStatus = updatePVTBuffer(msgGGA);
+                  
               }
+
           }
+
+          msgParser = MSG_DISCARD;
                 
 
       case MSG_CHSUM:
       case  MSG_FAILED:
           ;
-              
+
+      case MSG_DISCARD:
+          free(msgParts);
         
     }
   }
+
   return 0;
 
 }
+
+double deg2rad(double deg) {
+    return (deg * pi / 180);
+}
+
+
+double rad2deg(double rad) {
+    return (rad * 180 / pi);
+}
+
+double getDistanceKM(coord_t latA, coord_t latB, coord_t lonA,  coord_t lonB) {
+    double theta, dist;
+    double lat1 = (latA.deg + (latA.min / 100)) * ((latA.dir == 'N') ? 1 : -1);
+    double lat2 = (latB.deg + (latB.min / 100)) * ((latB.dir == 'N') ? 1 : -1);
+    double lon1 = (lonA.deg + (lonA.min / 100)) * ((lonA.dir == 'E') ? 1 : -1);
+    double lon2 = (lonB.deg + (lonB.min / 100)) * ((lonB.dir == 'E') ? 1 : -1);
+
+    if ((lat1 == lat2) && (lon1 == lon2)) {
+        return 0;
+    }
+    else {
+            theta = lon1 - lon2;
+            dist = sin(deg2rad(lat1)) * sin(deg2rad(lat2)) + cos(deg2rad(lat1)) * cos(deg2rad(lat2)) * cos(deg2rad(theta));
+            dist = acos(dist);
+            dist = rad2deg(dist);
+            dist = dist * 60 * 1.1515;
+            dist = dist * 1.609344;
+        
+        return (dist);
+    }
+}
+
+double getTimeSec(tm_t timestampA, tm_t timestampB)
+{
+    double timeSec = -1;
+    timeSec = fabs(((timestampA.tm_hour * 60 * 60) + (timestampA.tm_min * 60) + timestampA.tm_sec) - 
+        ((timestampB.tm_hour * 60 * 60) + (timestampB.tm_min * 60) + timestampB.tm_sec));
+    return timeSec;
+
+}
+
+double getSpeedKMPH(float distanceKm, float tSec)
+{
+    double speedKmph = distanceKm / (tSec / 3600);
+    return speedKmph;
+}
+
+
+
+
 
 int main(void) {
 

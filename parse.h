@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define pi 3.14159265358979323846
+
 typedef struct tm
 {
 	int tm_sec;   // seconds after the minute - [0, 60] including leap second
@@ -70,7 +72,8 @@ MSG_TYPE,
 MSG_DATA,
 MSG_CHSUM,
 MSG_UNSUPPORTED,
-MSG_FAILED
+MSG_FAILED,
+MSG_DISCARD
 }msgParse;
 
 typedef struct pvtBuffer
@@ -96,10 +99,12 @@ RMC_t parseMsgRMC(const char* msg, int length);
 GGA_t parseMsgGGA(const char** msgParts);
 VTG_t parseMsgVTG(const char*msg, int length);
 int updatePVTBuffer(GGA_t dataGGA);
-float getDistanceKM(coord_t latA, coord_t latB, coord_t lonA, coord_t lonB);
-float getTimeSec(tm_t timestampA, tm_t timestampB);
-float getSpeedKMPH(float distance, float tSec);
+double getDistanceKM(coord_t latA, coord_t latB, coord_t lonA, coord_t lonB);
+double getTimeSec(tm_t timestampA, tm_t timestampB);
+double getSpeedKMPH(float distanceKm, float tSec);
 int updateSpeedTime(float speed, float tStamp);
 int writeSpeedTimetoFile(float speed, float tStamp);
 bool isValidStartChar(const char* msg);
 char** getMsgParts(const char* msg, int length);
+double deg2rad(double);
+double rad2deg(double);
