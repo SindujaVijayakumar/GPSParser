@@ -92,12 +92,12 @@ typedef enum buffStatus {
 
 
 int processLog(FILE *logFile);
-int processMsg(const char* msg, int length);
+int processMsg(const char* msg);
 bool isValidMsg(const char* msg, int length);
 int getMsgType(const char* msg, int length);
-RMC_t parseMsgRMC(const char* msg, int length);
+RMC_t parseMsgRMC(const char* msg);
 GGA_t parseMsgGGA(const char** msgParts);
-VTG_t parseMsgVTG(const char*msg, int length);
+VTG_t parseMsgVTG(const char*msg);
 int updatePVTBuffer(GGA_t dataGGA);
 double getDistanceKM(coord_t latA, coord_t latB, coord_t lonA, coord_t lonB);
 double getTimeSec(tm_t timestampA, tm_t timestampB);

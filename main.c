@@ -12,7 +12,7 @@
 #define MAX_MSGS INT_MAX
 #define NMEA_MSG_LEN 82
 
-const char debugFile[] = "./nmea_sample_full";
+const char debugFile[] = "./ridetest.txt";
 
 
 
@@ -20,7 +20,14 @@ const char debugFile[] = "./nmea_sample_full";
 
 bool isValidMsg(const char* msg, int length)
 {
-  return true;
+    char talkerID[3] = { 0 };
+    msg++;
+    strncpy(talkerID, msg, 2);
+    //talkerID[2] = 0;
+    if (strcmp(talkerID, "GN") == 0 || strcmp(talkerID, "GP") == 0 || strcmp(talkerID, "GL") == 0)
+        return true;
+    else
+        return false;
     
 }
 
@@ -29,11 +36,12 @@ char** splitMsgByComma(const char* msg, int length)
 {
   int pos = 0;
   char **tokens = NULL;
-  int lenToken = 0;
+  int lenToken = strlen(msg);
   int numToken = 0;
   int prevCommaPos = 0;
-  char* temp = (char*)(malloc(sizeof(char) * (length)));
-  strcpy(temp, msg);
+  //char* temp = (char*)(malloc(sizeof(char) * (length)));
+  //strcpy(temp, msg);
+  char* temp = _strdup(msg);
 
   tokens = (char**)malloc(sizeof(char) * 90);
   for(pos=0; pos<length; pos++)
@@ -56,14 +64,13 @@ char** splitMsgByComma(const char* msg, int length)
             //strcat(tokens[numToken], '\0');
       
         }
-        //printf("\ntokens[%d]=%s", numToken, tokens[numToken]);
-        // free(tokens[numToken]);
         numToken++;
         lenToken = 0;
         prevCommaPos = pos;
       
     } 
   }
+  free(temp);
   return tokens;
     
 }
@@ -245,78 +252,148 @@ void clearSpeedLog()
     
 }
 
+int processMsg(char* msg)
+{
+    enum msgParserState msgParser = MSG_VALID;
+    int msg_len = strlen(msg);
+    char** msgParts = NULL;
+    msgType_t msgtype = (msgType_t)UNSUPPORTED;
+    GGA_t msgGGA;
+    buffStatus_t bufferStatus = (buffStatus_t)BUFF_EMPTY;
+    bool isMsgProcessed = false;
+
+    while (!isMsgProcessed)
+    {
+        switch (msgParser)
+        {
+
+            case MSG_VALID:
+            {
+                if (isValidMsg(msg, msg_len)) {
+                    msgParser = MSG_SPLIT;
+                }
+                else {
+                    msgParser = MSG_FAILED;
+                }
+                break;
+            }
+
+            case MSG_SPLIT:
+            {
+                msgParts = getMsgParts(msg, msg_len);
+                if (msgParts)
+                    msgParser = MSG_TYPE;
+                else
+                    msgParser = MSG_DISCARD;
+                break;
+            }
+
+            case MSG_TYPE:
+            {
+                msgtype = getMsgType(*msgParts);
+                if (msgtype == UNSUPPORTED)
+                    msgParser = MSG_DISCARD;
+                else
+                    msgParser = MSG_DATA;
+                break;
+
+            }
+            case MSG_DATA:
+            {
+
+                if (msgtype == GGA)
+                {
+                    msgGGA = parseMsgGGA(msgParts);
+                    if (isValidGGAMsg(msgGGA))
+                    {
+                        bufferStatus = updatePVTBuffer(msgGGA);
+
+                    }
+
+                }
+
+                msgParser = MSG_DISCARD;
+            }
+
+
+            case MSG_CHSUM:
+            {
+                ;
+            }
+            case  MSG_FAILED:
+            {
+                isMsgProcessed = true;
+                break;
+            }
+
+            case MSG_DISCARD:
+            {
+                isMsgProcessed = true;
+                free(msgParts);
+                break;
+            }
+
+        }
+    }
+    return 0;
+}
+
+
+
+
 
 int processLog(FILE *logFile)
 {
-  enum msgParserState msgParser = MSG_VALID;
-  char msg[NMEA_MSG_LEN + 1]; //One extra for null char
-  int msg_len = 0;
-  char** msgParts = NULL;
-  msgType_t msgtype = (msgType_t)UNSUPPORTED;
-  GGA_t msgGGA;
-  buffStatus_t bufferStatus = (buffStatus_t)BUFF_EMPTY;
-
-  clearSpeedLog();
   
-  while(fscanf(logFile, " %[^\n]", msg) != EOF)
+  char msg[100] = { 0 }; //One extra for null char
+  bool gotMsg = false;
+  int c;
+ 
+ 
+    clearSpeedLog();
+
+  while((c=fgetc(logFile))!=EOF)
   {
-    msgParser = MSG_VALID;
-    msg_len = strlen(msg);
-    switch(msgParser)
-    {
 
-      case MSG_VALID:
-        if(isValidMsg(msg, msg_len)){
-          msgParser = MSG_SPLIT;
-        }
-        else{
-          msgParser = MSG_VALID;
-          break;
-        }
-
-      case MSG_SPLIT:
+      if (c == '$')
       {
-          msgParts = getMsgParts(msg, msg_len);
-          if (msgParts)
-              msgParser = MSG_TYPE;
-          else
-              msgParser = MSG_FAILED;
-      }
-
-      case MSG_TYPE:
-      {
-          msgtype = getMsgType(*msgParts);
-          if (msgtype == UNSUPPORTED)
-              msgParser = MSG_DISCARD;
-          else
-              msgParser = MSG_DATA;
-
-      }
-      case MSG_DATA:
-          
-          if (msgtype == GGA)
+          if (gotMsg)
           {
-              msgGGA = parseMsgGGA(msgParts);
-              if (isValidGGAMsg(msgGGA))
-              {
-                  bufferStatus = updatePVTBuffer(msgGGA);
-                  
-              }
-
+              gotMsg = false;
+              memset(msg, 0, sizeof(msg));
           }
+          else
+          {
+              gotMsg = true;
+              
+          }
+                          
+      }
 
-          msgParser = MSG_DISCARD;
-                
-
-      case MSG_CHSUM:
-      case  MSG_FAILED:
-          ;
-
-      case MSG_DISCARD:
-          free(msgParts);
-        
-    }
+          
+      if (c == '*' && gotMsg == true)
+      {
+          
+          processMsg(msg);          
+          memset(msg, 0, sizeof(msg));
+          gotMsg = false;
+         
+      }
+      if (gotMsg)
+      {
+          if(strlen(msg) < (NMEA_MSG_LEN + 1))
+            strncat(msg, &c, 1);
+          else
+              memset(msg, 0, sizeof(msg));
+      }
+      
+          
   }
+
+
+  printf("\n\nFEOF %d", feof(logFile));
+
+    
 
   return 0;
 
@@ -376,12 +453,13 @@ int main(void) {
 
   FILE *logFile = NULL; 
   enum logParserState logParser = LOGP_NOINIT;
-  
+
+ 
 
   switch(logParser){
     case LOGP_NOINIT:
     {
-      logFile = fopen(debugFile, "r");
+      logFile = fopen(debugFile, "rb");
       logParser = LOGP_FAILED;
       if(logFile != NULL){
           logParser = LOGP_OPENED;
@@ -400,8 +478,9 @@ int main(void) {
 
     case LOGP_CLOSE:
     {
-      fclose(logFile);
-      break;
+        if(logFile)
+            fclose(logFile);
+        break;
     }
 
     case LOGP_FAILED:
