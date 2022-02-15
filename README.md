@@ -4,4 +4,5 @@ How to use?
 
 Example:
 gcc main.c -o main
+
 ./main.out "ridetest.txt"
