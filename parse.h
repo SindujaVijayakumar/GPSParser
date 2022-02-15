@@ -25,12 +25,12 @@ typedef struct coordinates {
 	char dir;
 } coord_t;
 
-typedef struct fieldsRMC_s{
+typedef struct RMC_fields{
 	int i;
 
 }RMC_t;
 
-typedef struct fieldsGGA_s{
+typedef struct GGA_fields{
 	tm_t timestamp;
 	coord_t lat;
 	coord_t lon;
@@ -46,26 +46,26 @@ typedef struct fieldsGGA_s{
 
 }GGA_t;
 
-typedef struct fieldsVTG_s{
+typedef struct VTG_fields{
 	int i;
 }VTG_t;
 
-typedef enum msgType{
+typedef enum msg_type{
   RMC,
   VTG,
   GGA,
   UNSUPPORTED = -1
   
-}msgType_t;
+}msg_type_t;
 
-typedef enum logParserState {
+typedef enum log_parse_state {
 LOGP_NOINIT,
 LOGP_OPENED,
 LOGP_CLOSE,
 LOGP_FAILED
-}logParse;
+}log_parse_state_t;
 
-typedef enum msgParserState{
+typedef enum msg_parser_state{
 MSG_VALID,
 MSG_SPLIT,
 MSG_TYPE,
@@ -74,37 +74,33 @@ MSG_CHSUM,
 MSG_UNSUPPORTED,
 MSG_FAILED,
 MSG_DISCARD
-}msgParse;
+}msg_parser_t;
 
-typedef struct pvtBuffer
+typedef struct pvt_buffer
 {
 	tm_t timestamp;
 	coord_t lat;
 	coord_t lon;
 
-}pvtBuf_t;
+}pvt_buffer_t;
 
-typedef enum buffStatus {
+typedef enum buffer_status {
 	BUFF_EMPTY = 0,
 	BUFF_INUSE = 1,
 	BUFF_FULL = 2
-}buffStatus_t;
+}buffer_status_t;
 
 
-int processLog(FILE *logFile);
-int processMsg(const char* msg);
-bool isValidMsg(const char* msg, int length);
-int getMsgType(const char* msg, int length);
-RMC_t parseMsgRMC(const char* msg);
-GGA_t parseMsgGGA(const char** msgParts);
-VTG_t parseMsgVTG(const char*msg);
-int updatePVTBuffer(GGA_t dataGGA);
-double getDistanceKM(coord_t latA, coord_t latB, coord_t lonA, coord_t lonB);
-double getTimeSec(tm_t timestampA, tm_t timestampB);
-double getSpeedKMPH(float distanceKm, float tSec);
-int updateSpeedTime(float speed, float tStamp);
-int writeSpeedTimetoFile(float speed, float tStamp);
-bool isValidStartChar(const char* msg);
-char** getMsgParts(const char* msg, int length);
-double deg2rad(double);
-double rad2deg(double);
+uint8_t process_log(const FILE* log_file);
+uint8_t process_msg(const char* msg);
+bool is_valid_msg(const char* msg, size_t length);
+int get_msg_type(const char* msg);
+GGA_t parse_GGA(const char** msg_parts);
+buffer_status_t update_speed_timestamp(const GGA_t dataGGA);
+double get_distance_km(const coord_t latA, const coord_t latB, const coord_t lonA, const coord_t lonB);
+double get_time_sec(const tm_t timestampA, const tm_t timestampB);
+double get_speed_kmph(const float distance_km, const float time_sec);
+void write_data(const double speed_kmph, const tm_t timestamp);
+char** get_msg_parts(const char* msg, size_t length);
+double deg2rad(const double);
+double rad2deg(const double);
